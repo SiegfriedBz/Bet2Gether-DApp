@@ -1,6 +1,5 @@
-[![Protocol Instance](https://img.shields.io/badge/Protocol-Instance-blue)](https://bet2gether-alpha.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://bet2gether-alpha.vercel.app)
 ![Foundry](https://img.shields.io/badge/Foundry-Tests-informational)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 # 🎲 Bet2Gether: Autonomous Chainlink Oracle-Driven Settlement Protocol
 
