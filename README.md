@@ -2,7 +2,7 @@
 ![Foundry](https://img.shields.io/badge/Foundry-Tests-informational)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-# 🎲 Bet2Gether: Autonomous Oracle-Driven Settlement Protocol
+# 🎲 Bet2Gether: Autonomous Chainlink Oracle-Driven Settlement Protocol
 
 Bet2Gether is an asynchronous market protocol for trust-minimized prediction settlement. It uses **Chainlink Automation**, **Chainlink Price Feeds**, and **Chainlink VRF v2.5** (ERC-1155 rewards via [`PredictionPoolToken`](be/src/PredictionPoolToken.sol)) so settlement and reward draws do not rely on centralized administrative control.
 
