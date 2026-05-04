@@ -3,7 +3,7 @@
 ![Foundry](https://img.shields.io/badge/Foundry-Tests-informational)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-# Bet2Gether — Autonomous Oracle-Driven Prediction Markets
+# 🎲 Bet2Gether — Autonomous Chainlink Oracle-Driven Prediction Markets
 
 A trust-minimized prediction protocol on **Ethereum Sepolia** where players bet ETH on whether a Chainlink price feed will close above or below a target by a deadline. Settlement is triggered by **Chainlink Automation**, the winning side splits a **time-weighted pool** (earlier bets carry more weight), and round creators that win are rewarded with a **Chainlink VRF**–randomized ERC-1155 collectible via a **Tenderly Web3 Action** bridge.
 
