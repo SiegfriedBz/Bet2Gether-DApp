@@ -216,6 +216,12 @@ cd web3-actions && tenderly actions deploy
 - **On-chain convergence.** Replace the Tenderly-triggered minting with logic in core contracts for a fully on-chain reward path.
 - **ZKP research.** Assess zero-knowledge proofs for privacy-preserving reward claims.
 
+- Allocation of platform fees (e.g., 1% of round pots)
+- Selection of supported Chainlink Price Feeds
+- Governance of platform upgrades or new features
+
+⚠️ Note: This feature is currently not implemented and remains a planned enhancement for future versions.
+  
 ---
 
 ## Author
