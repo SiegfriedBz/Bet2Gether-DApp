@@ -3,17 +3,21 @@
 ![Foundry](https://img.shields.io/badge/Foundry-Tests-informational)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-# 🎲 Bet2Gether — Autonomous Chainlink Oracle-Driven Prediction Markets
+# Bet2Gether — A Web3 Prediction Markets Case Study
 
-A trust-minimized prediction protocol on **Ethereum Sepolia** where players bet ETH on whether a Chainlink price feed will close above or below a target by a deadline. Settlement is triggered by **Chainlink Automation**, the winning side splits a **time-weighted pool** (earlier bets carry more weight), and round creators that win are rewarded with a **Chainlink VRF**–randomized ERC-1155 collectible via a **Tenderly Web3 Action** bridge.
+Bet2Gether is an experiment in running binary prediction markets where settlement and reward draws stay outside any operator's hands. Players bet ETH on whether a **Chainlink price feed** will close above or below a target by a deadline. Settlement is triggered by **Chainlink Automation**, the winning side splits a time-weighted pool (earlier bets carry more weight), and round creators that win receive a **Chainlink VRF**–randomized **ERC-1155** collectible minted by a **Tenderly Web3 Action** bridge.
+
+**[Live demo](https://bet2gether-alpha.vercel.app)**
 
 ---
 
-## Quick Start
+## Try the Live Demo
+
+To explore the live demo, you need a browser wallet ([MetaMask](https://metamask.io/) works) funded with Ethereum Sepolia ETH — grab some free from the faucet below. No local setup required.
 
 1. Open the **[live demo](https://bet2gether-alpha.vercel.app)**.
 2. Connect a wallet on **Ethereum Sepolia**.
-3. **Create a round** (pick a Chainlink feed, target price, side, duration) or **bet on an active round**.
+3. Create a round (pick a Chainlink feed, target price, side, duration), or bet on an active round.
 4. After the deadline, Chainlink Automation resolves the round; winners pull their share with **Claim Rewards**.
 
 Need testnet ETH? [Sepolia Faucet](https://sepolia-faucet.pk910.de/)
@@ -22,20 +26,24 @@ Need testnet ETH? [Sepolia Faucet](https://sepolia-faucet.pk910.de/)
 
 ---
 
-## The Problem
+## Why
 
-Prediction markets only work if settlement is credibly neutral. Two common designs both fail that bar:
+Prediction markets are interesting as a coordination problem only when settlement is credibly neutral. Two common designs sit in tension with that goal:
 
-- **Operator-settled markets** — an admin or off-chain keeper picks the price, calls `resolve()`, and decides who gets paid. The platform's value proposition (trust-minimized outcomes) collapses into trusting one entity.
-- **Permissionless on-chain markets without a keeper** — somebody still has to trigger resolution. If users do it, settlement is gameable (winners delay, losers grief). If a single bot does it, you are back to operator risk.
+- **Operator-settled markets.** An admin or off-chain keeper picks the price, calls `resolve()`, and decides who gets paid. The value proposition of trust-minimized outcomes then rests on trusting that one entity.
+- **Permissionless on-chain markets without a keeper.** Somebody still has to trigger resolution. If users do it, settlement is gameable (winners delay, losers grief). If a single bot does it, the trust assumption shifts back to that operator.
 
-Reward distribution layers add a second trust hole: random rewards driven by `block.hash`, `block.timestamp`, or admin-picked `tokenId`s are predictable or manipulable, especially by miners/validators or the operator themselves.
+Reward distribution can introduce a second trust hole: random rewards driven by `block.hash`, `block.timestamp`, or admin-picked `tokenId`s are predictable or manipulable, especially by miners/validators or the operator themselves.
 
-## The Solution
+Bet2Gether is an experiment in that direction. It treats both settlement and reward draws as state transitions tied to oracle inputs — no operator step after a round opens — and anchors each transition to a verifiable source: Chainlink Automation, Chainlink Price Feeds, and Chainlink VRF.
 
-Bet2Gether removes administrative discretion from both settlement and reward draws. The protocol is an on-chain state machine: nothing about the outcome depends on a human decision after a round opens.
+---
 
-- **Deterministic resolution.** [`PredictionPool._resolveRound`](be/src/PredictionPool.sol) reads `AggregatorV3Interface.latestRoundData()` for the round's allow-listed feed and compares it to `round.target`. Decimals are normalized to 1e18 and negative answers revert.
+## Solution
+
+Settlement and reward draws are encoded as state transitions. Once a round opens, the outcome depends only on the price feed, the deadline, and the VRF response.
+
+- **Deterministic resolution.** [`PredictionPool._resolveRound`](be/src/PredictionPool.sol) reads `AggregatorV3Interface.latestRoundData()` for the round's allow-listed feed and compares it to `round.target`. Decimals are normalized to 1e18 and non-positive answers revert.
 - **Autonomous execution.** [`PredictionPool`](be/src/PredictionPool.sol) implements `AutomationCompatibleInterface`. `checkUpkeep` returns the IDs of rounds whose deadline has passed; `performUpkeep` resolves them and emits `PredictionPool_RoundResolved`. No user has to call `resolve()`.
 - **Time-weighted payouts.** [`getBetWeight`](be/src/PredictionPool.sol) scales each bet by `((round.end - bet.time) * 1e18) / (round.end - round.start)`, so earlier conviction earns a larger share of the pool than late-round piling-on.
 - **Pull payments with CEI + reentrancy guard.** `claimReward` marks `bet.claimed = true` and emits before the external ETH transfer, and is protected by OpenZeppelin's `nonReentrant`.
@@ -82,54 +90,65 @@ Winners claim their share of the pool from the Claim Rewards tab. Payouts are pr
 
 ## Architecture
 
-Two contracts on Sepolia, one off-chain Tenderly Action acting as a bridge, and a Next.js client that talks to all of it through wagmi/viem.
+Two contracts on Sepolia, an off-chain Tenderly Action that bridges resolution events to a mint call, and a Next.js client wired up through wagmi/viem.
 
-![Project diagram](assets/project-diagram.png)
-
-| Pattern | Rationale |
-|---------|-----------|
-| **Checks-Effects-Interactions (CEI)** | In `claimReward`, internal state (e.g. `claimed`) is updated before the external ETH transfer ([`PredictionPool`](be/src/PredictionPool.sol)). |
-| **Atomic payouts** | `_resolveRound` reads the settlement price and updates round status in one execution step for that round. |
-| **Non-deterministic rewards** | In `fulfillRandomWords`, `tokenId = randomWord % I_MAX_TOKEN_ID` ([`PredictionPoolToken`](be/src/PredictionPoolToken.sol)). |
-| **Reentrancy guard** | `nonReentrant` on `claimReward` only ([`PredictionPool`](be/src/PredictionPool.sol)). |
-
-### 1. Market lifecycle (autonomous resolution)
+#### System overview : autonomous resolution and Event-driven reward bridge
 
 Rounds move from **Active** toward **Resolved** via Automation. `_resolveRound` reads the feed for settlement.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant Pool as PredictionPool
-    participant CL_Feed as Chainlink_PriceFeed
-    participant CL_Auto as Chainlink_Automation
-
-    User ->> Pool: createRound(feed, target, betSide, duration)
-    User ->> Pool: betOn(roundId, betSide)
-    CL_Auto ->> Pool: performUpkeep at round.end
-    Pool ->> CL_Feed: latestRoundData (atomic settlement)
-    CL_Feed -->> Pool: verified price
-    Pool ->> Pool: _resolveRound and emit RoundResolved
-```
-
-### 2. Event-driven reward bridge
 
 A **Tenderly Web3 Action** listens for `PredictionPool_RoundResolved`. When the configured logic applies (e.g. round creator is a winner), it calls `PredictionPoolToken.mint(to)`. VRF fulfillment performs `_mint`.
 
 ```mermaid
-sequenceDiagram
-    participant Pool as PredictionPool
-    participant Token as PredictionPoolToken_ERC1155
-    participant Tenderly as Tenderly_Web3_Actions
-    participant ChainlinkVRF as Chainlink_VRF
+flowchart TB
+    subgraph upperLane[" "]
+        direction LR
+        user[Player]
+        subgraph poolBox[PredictionPool]
+            direction TB
+            createRound[createRound]
+            betOn[betOn]
+            claimReward[claimReward]
+            resolveRound[_resolveRound]
+        end
+        automation[Chainlink Automation]
+        priceFeed[Chainlink Price Feed]
+    end
 
-    Pool ->> Pool: emit RoundResolved
-    Pool -->> Tenderly: event-driven reward bridge
-    Tenderly ->> Token: mint(to)
-    Token ->> ChainlinkVRF: requestRandomWords
-    ChainlinkVRF -->> Token: fulfillRandomWords
-    Token ->> Token: _mint(winner, tokenId)
+    tenderly[Tenderly Web3 Action]
+
+    subgraph tokenBox["PredictionPoolToken ERC-1155"]
+        direction TB
+        mintFn[mint]
+        fulfillRnd[fulfillRandomWords]
+    end
+
+    vrf[Chainlink VRF]
+    randomNft[Random NFT]
+
+    user -->|"address _feed, uint256 _target,<br/>BetSide _betSide, uint256 _duration,<br/>msg.value"| createRound
+    user -->|"uint256 _roundId, BetSide _betSide,<br/>msg.value"| betOn
+    user --> claimReward
+    claimReward -.->|"ETH payout"| user
+
+    automation -->|"resolve at deadline"| resolveRound
+    resolveRound --> priceFeed
+    priceFeed -->|"price"| resolveRound
+
+    resolveRound -.->|"RoundResolved event"| tenderly
+    tenderly -->|"if creator won"| mintFn
+    mintFn --> vrf
+    vrf --> fulfillRnd
+    fulfillRnd --> randomNft
 ```
+
+#### Key patterns
+
+| Pattern | Rationale |
+|---------|-----------|
+| **Checks-Effects-Interactions (CEI)** | In `claimReward`, internal state (e.g. `claimed`) is updated before the external ETH transfer ([`PredictionPool`](be/src/PredictionPool.sol)). |
+| **Reentrancy guard** | `nonReentrant` on `claimReward` only ([`PredictionPool`](be/src/PredictionPool.sol)). |
+| **Atomic settlement** | `_resolveRound` reads the settlement price and updates round status in one execution step for that round. |
+| **Non-deterministic rewards** | Chainlink VRF v2.5 delivers a verifiable random word via callback; `tokenId = _randomWords[0] % I_MAX_TOKEN_ID` maps it into the valid ERC-1155 range, so the collectible's identity is unpredictable until the response arrives on-chain ([`PredictionPoolToken`](be/src/PredictionPoolToken.sol)). |
 
 ---
 
@@ -210,25 +229,15 @@ cd web3-actions && tenderly actions deploy
 
 ---
 
-## Future Roadmap
+## Roadmap
 
 - **L2 convergence.** Deploy to Arbitrum or Optimism (or similar) to compare settlement and UX cost vs Sepolia/L1-style usage.
 - **On-chain convergence.** Replace the Tenderly-triggered minting with logic in core contracts for a fully on-chain reward path.
-- **ZKP research.** Assess zero-knowledge proofs for privacy-preserving reward claims.
 
-- Allocation of platform fees (e.g., 1% of round pots)
-- Selection of supported Chainlink Price Feeds
-- Governance of platform upgrades or new features
-
-⚠️ Note: This feature is currently not implemented and remains a planned enhancement for future versions.
-  
 ---
 
 ## Author
+Built solo by 
+**Siegfried Bozza** — Full-stack Engineer & Web3 Builder (Foundry | Solidity | Chainlink | React | Next.js)
 
-**Siegfried Bozza** · M.Sc / M.Eng · Full-stack Web3 engineer.
-
-Bet2Gether was built solo, alongside a full-time full-stack job (contracts, frontend, deployment, infrastructure).
-
-- [LinkedIn](https://www.linkedin.com/in/siegfriedbozza/)
-- [GitHub](https://github.com/SiegfriedBz)
+[LinkedIn](https://www.linkedin.com/in/siegfriedbozza/) 
