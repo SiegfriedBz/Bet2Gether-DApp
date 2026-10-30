@@ -1,66 +1,28 @@
-## Foundry
+# Bet2Gether contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Foundry project for the two Bet2Gether contracts on Ethereum Sepolia:
 
-Foundry consists of:
+- [`src/PredictionPool.sol`](src/PredictionPool.sol): rounds, time-weighted bets, resolution by Chainlink Automation and price feeds, pull-payment claims.
+- [`src/PredictionPoolToken.sol`](src/PredictionPoolToken.sol): ERC-1155 collectible, minted through Chainlink VRF v2.5 by an address with `MINTER_ROLE`.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+What they do, the known bugs and the deployed addresses are in the [root README](../README.md).
 
-## Documentation
+## Commands
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge install
+forge build
+forge test
+forge coverage
 ```
 
-### Test
+## Deploy
 
-```shell
-$ forge test
+Set `ALCHEMY_SEPOLIA_RPC_URL`, `PRIVATE_KEY` and `ETHERSCAN_API_KEY` in `be/.env`, then:
+
+```bash
+forge script script/PredictionPoolScript.s.sol --rpc-url $ALCHEMY_SEPOLIA_RPC_URL --broadcast --verify
+forge script script/PredictionPoolTokenScript.s.sol --rpc-url $ALCHEMY_SEPOLIA_RPC_URL --broadcast --verify
 ```
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Feeds and VRF settings are in `script/Constants_PredictionPool.sol` and `script/Constants_PredictionPoolToken.sol`.
