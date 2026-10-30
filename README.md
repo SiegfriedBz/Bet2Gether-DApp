@@ -1,7 +1,6 @@
 [![Live Demo](https://img.shields.io/badge/Live-Demo-blue)](https://bet2gether-alpha.vercel.app)
 ![CI-Foundry](https://github.com/SiegfriedBz/Bet2Gether-DApp/actions/workflows/foundry-tests.yml/badge.svg)
 ![Foundry](https://img.shields.io/badge/Foundry-Tests-informational)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 # Bet2Gether — A Web3 Prediction Markets Case Study
 
