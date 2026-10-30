@@ -827,7 +827,7 @@ contract PredictionPoolTest is Test, Constants_PredictionPool {
     function test_toggleAllowPriceFeed_RevertWhen_Notowner() public {
         // Not-owner tries to toggle Allow PriceFeed
         vm.prank(player01);
-        vm.expectRevert(abi.encode("Ownable: caller is not the owner"));
+        vm.expectRevert(bytes("Ownable: caller is not the owner"));
         pPool.toggleAllowPriceFeed(SEPOLIA_LINK_USD);
     }
 
@@ -869,7 +869,7 @@ contract PredictionPoolTest is Test, Constants_PredictionPool {
         // Not-owner tries to change minRoundDuration
         uint256 newDuration = 10 minutes;
         vm.prank(player01);
-        vm.expectRevert(abi.encode("Ownable: caller is not the owner"));
+        vm.expectRevert(bytes("Ownable: caller is not the owner"));
         pPool.setRoundDuration(newDuration);
     }
 
